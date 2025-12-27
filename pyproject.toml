@@ -44,6 +44,7 @@ ignore = [
     "E501",  # Line too long (handled by formatter)
     "RUF002",  # Ambiguous characters in docstrings (Chinese text uses fullwidth punctuation)
     "RUF003",  # Ambiguous characters in comments (Chinese text uses fullwidth punctuation)
+    "RUF019",  # Unnecessary key check - explicit checks are safer for API responses
 ]
 
 [tool.ruff.format]

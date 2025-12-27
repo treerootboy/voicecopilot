@@ -289,7 +289,7 @@ class ZhipuTTSStream(tts.SynthesizeStream):
                             data = json.loads(json_str)
 
                             # 检查是否结束
-                            if data.get("choices"):
+                            if "choices" in data and data["choices"]:
                                 choice = data["choices"][0]
                                 if choice.get("finish_reason") == "stop":
                                     break
