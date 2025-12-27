@@ -8,20 +8,20 @@ TTS API: https://docs.bigmodel.cn/api-reference/模型-api/文本转语音
 参考: https://github.com/livekit/livekit/issues/3176
 """
 
+import base64
 import io
+import json
 import logging
 import os
 import wave
-import base64
-import json
 from typing import Optional
-import aiohttp
 
+import aiohttp
 from livekit.agents import (
+    APIConnectOptions,
     stt,
     tts,
     utils,
-    APIConnectOptions,
 )
 from livekit.agents.utils import AudioBuffer
 
@@ -45,7 +45,7 @@ class ZhipuSTT(stt.STT):
         super().__init__(
             capabilities=stt.STTCapabilities(
                 streaming=False,  # 使用非流式模式，配合 StreamAdapter 使用
-                interim_results=False
+                interim_results=False,
             )
         )
         self.api_key = api_key or os.getenv("OPENAI_API_KEY")
@@ -55,9 +55,9 @@ class ZhipuSTT(stt.STT):
         self.hotwords = hotwords or []
 
     async def _recognize_impl(
-        self, 
-        buffer: AudioBuffer, 
-        *, 
+        self,
+        buffer: AudioBuffer,
+        *,
         language: str | None = None,
         conn_options: APIConnectOptions,
     ) -> stt.SpeechEvent:
@@ -85,20 +85,20 @@ class ZhipuSTT(stt.STT):
                 headers = {
                     "Authorization": f"Bearer {self.api_key}",
                 }
-                
+
                 # 智谱 API 端点
                 url = f"{self.base_url}/audio/transcriptions"
-                
+
                 data = aiohttp.FormData()
                 data.add_field(
                     "file",
                     io_buffer.getvalue(),
                     filename="audio.wav",
-                    content_type="audio/wav"
+                    content_type="audio/wav",
                 )
                 data.add_field("model", self._model_name)
                 data.add_field("stream", "false")  # 非流式
-                
+
                 # 添加可选参数
                 if self.prompt:
                     data.add_field("prompt", self.prompt)
@@ -108,7 +108,9 @@ class ZhipuSTT(stt.STT):
                 async with session.post(url, headers=headers, data=data) as response:
                     if response.status != 200:
                         error_text = await response.text()
-                        logger.error(f"智谱 STT API 错误: {response.status} - {error_text}")
+                        logger.error(
+                            f"智谱 STT API 错误: {response.status} - {error_text}"
+                        )
                         result_text = ""
                     else:
                         result = await response.json()
@@ -121,12 +123,7 @@ class ZhipuSTT(stt.STT):
 
         return stt.SpeechEvent(
             type=stt.SpeechEventType.FINAL_TRANSCRIPT,
-            alternatives=[
-                stt.SpeechData(
-                    text=result_text,
-                    language=language or "zh"
-                )
-            ],
+            alternatives=[stt.SpeechData(text=result_text, language=language or "zh")],
         )
 
 
@@ -170,7 +167,9 @@ class ZhipuTTS(tts.TTS):
             self._session = aiohttp.ClientSession()
         return self._session
 
-    def synthesize(self, text: str, *, conn_options: APIConnectOptions = None) -> tts.ChunkedStream:
+    def synthesize(
+        self, text: str, *, conn_options: APIConnectOptions = None
+    ) -> tts.ChunkedStream:
         """
         合成语音（非流式模式,不推荐使用）
         注意: 智谱 TTS 主要支持流式模式,这里为了兼容性提供此方法
@@ -214,10 +213,10 @@ class ZhipuTTSStream(tts.SynthesizeStream):
             stream=True,
             mime_type="audio/pcm",
         )
-        
+
         # 开始segment
         output_emitter.start_segment(segment_id=request_id)
-        
+
         # 收集输入文本
         input_text = ""
         async for data in self._input_ch:
@@ -225,16 +224,16 @@ class ZhipuTTSStream(tts.SynthesizeStream):
                 continue
             if isinstance(data, str):
                 input_text += data
-        
+
         if not input_text:
             output_emitter.end_segment()
             return
-        
+
         # 限制文本长度
         input_text = input_text[:1024]
-        
+
         session = self._tts._ensure_session()
-        
+
         headers = {
             "Authorization": f"Bearer {self._tts.api_key}",
             "Content-Type": "application/json",
@@ -253,9 +252,14 @@ class ZhipuTTSStream(tts.SynthesizeStream):
         }
 
         url = f"{self._tts.base_url}/audio/speech"
-        
+
         try:
-            async with session.post(url, headers=headers, json=payload, timeout=aiohttp.ClientTimeout(total=30)) as response:
+            async with session.post(
+                url,
+                headers=headers,
+                json=payload,
+                timeout=aiohttp.ClientTimeout(total=30),
+            ) as response:
                 if response.status != 200:
                     error_text = await response.text()
                     logger.error(f"智谱 TTS API 错误: {response.status} - {error_text}")
@@ -266,38 +270,38 @@ class ZhipuTTSStream(tts.SynthesizeStream):
                 buffer = b""
                 async for chunk in response.content.iter_any():
                     buffer += chunk
-                    
+
                     # 按行分割
                     while b"\n" in buffer:
                         line, buffer = buffer.split(b"\n", 1)
                         line_text = line.decode("utf-8").strip()
-                        
+
                         if not line_text or not line_text.startswith("data:"):
                             continue
 
                         # 移除 "data: " 前缀
                         json_str = line_text[5:].strip()
-                        
+
                         if not json_str or json_str == "[DONE]":
                             continue
 
                         try:
                             data = json.loads(json_str)
-                            
+
                             # 检查是否结束
-                            if "choices" in data and data["choices"]:
+                            if data.get("choices"):
                                 choice = data["choices"][0]
                                 if choice.get("finish_reason") == "stop":
                                     break
-                                
+
                                 # 提取音频数据
                                 if "delta" in choice and "content" in choice["delta"]:
                                     audio_base64 = choice["delta"]["content"]
-                                    
+
                                     if audio_base64:
                                         # 解码 base64
                                         audio_data = base64.b64decode(audio_base64)
-                                        
+
                                         # 推送音频数据
                                         output_emitter.push(audio_data)
                                         self._mark_started()
