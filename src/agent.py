@@ -10,7 +10,6 @@ from livekit.agents import (
     JobContext,
     JobProcess,
     cli,
-    inference,
     room_io,
     stt,
 )
@@ -33,7 +32,7 @@ class Assistant(Agent):
             """你是一个有帮助的中文语音 AI 助手。用户通过语音与你交互。
             你会热心地回答用户的问题,提供准确的信息。
             你的回答简洁明了,不使用复杂的格式或标点符号,包括表情符号、星号或其他特殊符号。
-            你好奇、友好,并且富有幽默感。"""
+            你好奇、友好,并且富有幽默感。""",
         )
         super().__init__(instructions=system_prompt)
 
@@ -79,7 +78,7 @@ async def my_agent(ctx: JobContext):
         base_url=os.getenv("OPENAI_BASE_URL"),
         model="glm-asr-2512",
     )
-    
+
     # 使用 StreamAdapter 包装 STT，配合 VAD 使用
     # StreamAdapter 会缓冲音频直到 VAD 检测到说话结束
     adapted_stt = stt.StreamAdapter(stt=zhipu_stt, vad=ctx.proc.userdata["vad"])
