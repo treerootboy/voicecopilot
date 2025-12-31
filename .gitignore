@@ -15,3 +15,5 @@ KMS
 voiceprints/
 test_voiceprints/
 pretrained_models/
+demo_voiceprints/
+demo_audio/
