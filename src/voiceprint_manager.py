@@ -12,6 +12,11 @@ from typing import Optional
 import numpy as np
 import torch
 import torchaudio
+
+# 修复 torchaudio 2.9+ 的兼容性问题
+if not hasattr(torchaudio, "list_audio_backends"):
+    torchaudio.list_audio_backends = lambda: [""]
+
 from livekit.agents.utils import AudioBuffer
 from speechbrain.inference.speaker import SpeakerRecognition
 

@@ -16,12 +16,12 @@ from livekit.agents import (
 from livekit.plugins import noise_cancellation, openai, silero
 from livekit.plugins.turn_detector.multilingual import MultilingualModel
 
-# 导入智谱 AI 自定义 STT/TTS
-from zhipu_stt_tts import ZhipuSTT, ZhipuTTS
-
 # 导入声纹管理模块
 from voiceprint_manager import VoiceprintManager
 from voiceprint_stt import VoiceprintSTT
+
+# 导入智谱 AI 自定义 STT/TTS
+from zhipu_stt_tts import ZhipuSTT, ZhipuTTS
 
 logger = logging.getLogger("agent")
 
@@ -92,7 +92,9 @@ async def my_agent(ctx: JobContext):
     adapted_stt = stt.StreamAdapter(stt=zhipu_stt, vad=ctx.proc.userdata["vad"])
 
     # 是否启用声纹验证（从环境变量读取，默认启用）
-    enable_voiceprint = os.getenv("ENABLE_VOICEPRINT_VERIFICATION", "true").lower() == "true"
+    enable_voiceprint = (
+        os.getenv("ENABLE_VOICEPRINT_VERIFICATION", "true").lower() == "true"
+    )
 
     # 如果启用声纹验证，使用 VoiceprintSTT 包装
     if enable_voiceprint:
