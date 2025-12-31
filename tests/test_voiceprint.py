@@ -2,7 +2,6 @@
 声纹管理测试
 """
 
-import io
 import wave
 
 import numpy as np
@@ -83,7 +82,7 @@ async def test_register_and_verify_voiceprint():
     # 验证应该成功（尽管质量可能不高）
     if result["success"]:
         # 验证同一音频
-        verify_result = manager.verify_speaker(audio_buffer)
+        _ = manager.verify_speaker(audio_buffer)
         # 注意：由于测试音频是简单的正弦波，可能无法很好地识别
         # 所以这个测试可能失败，这是正常的
 
