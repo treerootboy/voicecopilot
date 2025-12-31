@@ -10,3 +10,8 @@ KMS
 *.egg-info
 .pytest_cache
 .ruff_cache
+
+# Voiceprint data
+voiceprints/
+test_voiceprints/
+pretrained_models/
