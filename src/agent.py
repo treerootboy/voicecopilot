@@ -16,6 +16,10 @@ from livekit.agents import (
 from livekit.plugins import noise_cancellation, openai, silero
 from livekit.plugins.turn_detector.multilingual import MultilingualModel
 
+# 导入声纹管理模块
+from voiceprint_manager import VoiceprintManager
+from voiceprint_stt import VoiceprintSTT
+
 # 导入智谱 AI 自定义 STT/TTS
 from zhipu_stt_tts import ZhipuSTT, ZhipuTTS
 
@@ -59,6 +63,10 @@ server = AgentServer()
 
 def prewarm(proc: JobProcess):
     proc.userdata["vad"] = silero.VAD.load()
+    # 初始化声纹管理器
+    proc.userdata["voiceprint_manager"] = VoiceprintManager(
+        data_dir=os.getenv("VOICEPRINT_DATA_DIR", "voiceprints")
+    )
 
 
 server.setup_fnc = prewarm
@@ -83,10 +91,28 @@ async def my_agent(ctx: JobContext):
     # StreamAdapter 会缓冲音频直到 VAD 检测到说话结束
     adapted_stt = stt.StreamAdapter(stt=zhipu_stt, vad=ctx.proc.userdata["vad"])
 
+    # 是否启用声纹验证（从环境变量读取，默认启用）
+    enable_voiceprint = (
+        os.getenv("ENABLE_VOICEPRINT_VERIFICATION", "true").lower() == "true"
+    )
+
+    # 如果启用声纹验证，使用 VoiceprintSTT 包装
+    if enable_voiceprint:
+        voiceprint_manager = ctx.proc.userdata["voiceprint_manager"]
+        final_stt = VoiceprintSTT(
+            base_stt=adapted_stt,
+            voiceprint_manager=voiceprint_manager,
+            enable_verification=True,
+        )
+        logger.info("声纹验证已启用")
+    else:
+        final_stt = adapted_stt
+        logger.info("声纹验证未启用")
+
     # Set up a voice AI pipeline using 智谱 AI (GLM)
     session = AgentSession(
-        # Speech-to-text (STT) - 使用智谱 GLM-ASR-2512 with StreamAdapter
-        stt=adapted_stt,
+        # Speech-to-text (STT) - 使用智谱 GLM-ASR-2512 with StreamAdapter and optional voiceprint verification
+        stt=final_stt,
         # 如果智谱 STT 不可用，可以使用 OpenAI Whisper 作为替代
         # stt=openai.STT(
         #     model="whisper-1",

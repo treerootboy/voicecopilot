@@ -15,6 +15,9 @@ dependencies = [
     "python-dotenv",
     "zai-sdk>=0.2.0",
     "zhipuai>=1.0.7",
+    "speechbrain>=1.0.0",
+    "torch>=2.0.0",
+    "torchaudio>=2.0.0",
 ]
 
 [dependency-groups]
@@ -42,6 +45,7 @@ target-version = "py39"
 select = ["E", "F", "W", "I", "N", "B", "A", "C4", "UP", "SIM", "RUF"]
 ignore = [
     "E501",  # Line too long (handled by formatter)
+    "RUF001",  # Ambiguous characters in strings (Chinese text uses fullwidth punctuation)
     "RUF002",  # Ambiguous characters in docstrings (Chinese text uses fullwidth punctuation)
     "RUF003",  # Ambiguous characters in comments (Chinese text uses fullwidth punctuation)
     "RUF019",  # Unnecessary key check - explicit checks are safer for API responses
